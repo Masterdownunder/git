@@ -37,7 +37,7 @@ helper_test store
 unset XDG_CONFIG_HOME
 
 test_expect_success 'if custom xdg file exists, home and xdg files not created' '
-	test_when_finished "rm -f $HOME/xdg/git/credentials" &&
+	test_when_finished "rm -f \"$HOME/xdg/git/credentials\"" &&
 	test -s "$HOME/xdg/git/credentials" &&
 	test_path_is_missing "$HOME/.git-credentials" &&
 	test_path_is_missing "$HOME/.config/git/credentials"
@@ -75,7 +75,7 @@ test_expect_success 'get: use xdg file if home file has no matches' '
 	EOF
 '
 
-test_expect_success POSIXPERM 'get: use xdg file if home file is unreadable' '
+test_expect_success POSIXPERM,SANITY 'get: use xdg file if home file is unreadable' '
 	echo "https://home-user:home-pass@example.com" >"$HOME/.git-credentials" &&
 	chmod -r "$HOME/.git-credentials" &&
 	mkdir -p "$HOME/.config/git" &&
