@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use 5.008;
+require v5.26;
 use strict;
 use warnings;
 use IO::Pty;
@@ -67,14 +67,16 @@ sub copy_stdio {
 if ($#ARGV < 1) {
 	die "usage: test-terminal program args";
 }
-my $master_out = new IO::Pty;
-my $master_err = new IO::Pty;
-$master_out->set_raw();
-$master_err->set_raw();
-$master_out->slave->set_raw();
-$master_err->slave->set_raw();
-my $pid = start_child(\@ARGV, $master_out->slave, $master_err->slave);
-close $master_out->slave;
-close $master_err->slave;
-copy_stdio($master_out, $master_err);
-exit(finish_child($pid));
+$ENV{TERM} = 'vt100';
+my $parent_out = new IO::Pty;
+my $parent_err = new IO::Pty;
+$parent_out->set_raw();
+$parent_err->set_raw();
+$parent_out->slave->set_raw();
+$parent_err->slave->set_raw();
+my $pid = start_child(\@ARGV, $parent_out->slave, $parent_err->slave);
+close $parent_out->slave;
+close $parent_err->slave;
+copy_stdio($parent_out, $parent_err);
+my $ret = finish_child($pid);
+exit($ret);

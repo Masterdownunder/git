@@ -11,9 +11,9 @@ test_description='Try various core-level commands in subdirectory.
 
 test_expect_success setup '
 	long="a b c d e f g h i j k l m n o p q r s t u v w x y z" &&
-	for c in $long; do echo $c; done >one &&
+	test_write_lines $long >one &&
 	mkdir dir &&
-	for c in x y z $long a b c; do echo $c; done >dir/two &&
+	test_write_lines x y z $long a b c >dir/two &&
 	cp one original.one &&
 	cp dir/two original.two
 '
@@ -22,7 +22,7 @@ test_expect_success 'update-index and ls-files' '
 	git update-index --add one &&
 	case "$(git ls-files)" in
 	one) echo pass one ;;
-	*) echo bad one; exit 1 ;;
+	*) echo bad one; return 1 ;;
 	esac &&
 	(
 		cd dir &&
@@ -34,7 +34,7 @@ test_expect_success 'update-index and ls-files' '
 	) &&
 	case "$(git ls-files)" in
 	dir/two"$LF"one) echo pass both ;;
-	*) echo bad; exit 1 ;;
+	*) echo bad; return 1 ;;
 	esac
 '
 
@@ -57,7 +57,7 @@ test_expect_success 'diff-files' '
 	echo d >>dir/two &&
 	case "$(git diff-files --name-only)" in
 	dir/two"$LF"one) echo pass top ;;
-	*) echo bad top; exit 1 ;;
+	*) echo bad top; return 1 ;;
 	esac &&
 	# diff should not omit leading paths
 	(
@@ -141,14 +141,14 @@ test_expect_success 'GIT_PREFIX for !alias' '
 test_expect_success 'GIT_PREFIX for built-ins' '
 	# Use GIT_EXTERNAL_DIFF to test that the "diff" built-in
 	# receives the GIT_PREFIX variable.
-	printf "dir/" >expect &&
-	printf "#!/bin/sh\n" >diff &&
-	printf "printf \"\$GIT_PREFIX\"" >>diff &&
-	chmod +x diff &&
+	echo "dir/" >expect &&
+	write_script diff <<-\EOF &&
+	printf "%s\n" "$GIT_PREFIX"
+	EOF
 	(
 		cd dir &&
-		printf "change" >two &&
-		GIT_EXTERNAL_DIFF=./diff git diff >../actual
+		echo "change" >two &&
+		GIT_EXTERNAL_DIFF=./diff git diff >../actual &&
 		git checkout -- two
 	) &&
 	test_cmp expect actual
@@ -162,16 +162,20 @@ test_expect_success 'no file/rev ambiguity check inside .git' '
 	)
 '
 
-test_expect_success 'no file/rev ambiguity check inside a bare repo' '
+test_expect_success 'no file/rev ambiguity check inside a bare repo (explicit GIT_DIR)' '
+	test_when_finished "rm -fr foo.git" &&
 	git clone -s --bare .git foo.git &&
 	(
 		cd foo.git &&
+		# older Git needed help by exporting GIT_DIR=.
+		# to realize that it is inside a bare repository.
+		# We keep this test around for regression testing.
 		GIT_DIR=. git show -s HEAD
 	)
 '
 
-# This still does not work as it should...
-: test_expect_success 'no file/rev ambiguity check inside a bare repo' '
+test_expect_success 'no file/rev ambiguity check inside a bare repo' '
+	test_when_finished "rm -fr foo.git" &&
 	git clone -s --bare .git foo.git &&
 	(
 		cd foo.git &&
@@ -180,7 +184,6 @@ test_expect_success 'no file/rev ambiguity check inside a bare repo' '
 '
 
 test_expect_success SYMLINKS 'detection should not be fooled by a symlink' '
-	rm -fr foo.git &&
 	git clone -s .git another &&
 	ln -s another yetanother &&
 	(
